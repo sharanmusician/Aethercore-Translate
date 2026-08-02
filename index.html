@@ -124,7 +124,7 @@
             cursor: pointer;
             width: 100%;
             box-sizing: border-box;
-            height: 120px; /* Expanded box to show list nicely with search */
+            height: 140px;
         }
 
         .translator-container {
@@ -248,18 +248,6 @@
                     <input type="text" id="source-search" class="search-input" placeholder="Search source language...">
                     <select id="source-lang-select" size="5">
                         <option value="auto">Detect Language</option>
-                        <option value="en" selected>English</option>
-                        <option value="es">Spanish</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                        <option value="zh-CN">Chinese (Simplified)</option>
-                        <option value="ja">Japanese</option>
-                        <option value="hi">Hindi</option>
-                        <option value="ar">Arabic</option>
-                        <option value="pt">Portuguese</option>
-                        <option value="ru">Russian</option>
-                        <option value="it">Italian</option>
-                        <option value="ko">Korean</option>
                     </select>
                 </div>
             </div>
@@ -270,18 +258,7 @@
                 <div class="searchable-select-wrapper">
                     <input type="text" id="target-search" class="search-input" placeholder="Search target language...">
                     <select id="custom-target-select" size="5">
-                        <option value="es" selected>Spanish</option>
-                        <option value="en">English</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                        <option value="zh-CN">Chinese (Simplified)</option>
-                        <option value="ja">Japanese</option>
-                        <option value="hi">Hindi</option>
-                        <option value="ar">Arabic</option>
-                        <option value="pt">Portuguese</option>
-                        <option value="ru">Russian</option>
-                        <option value="it">Italian</option>
-                        <option value="ko">Korean</option>
+                        <!-- Dynamically populated -->
                     </select>
                 </div>
             </div>
@@ -309,30 +286,90 @@
     </footer>
 
     <script>
-        // Filter function for searchable select elements
-        function setupLanguageSearch(searchId, selectId) {
+        let allLanguagesData = {};
+
+        // Fetch all supported Google Translate languages and populate selects
+        async function loadLanguages() {
+            try {
+                const response = await fetch('/api/languages');
+                allLanguagesData = await response.json();
+
+                const sourceSelect = document.getElementById('source-lang-select');
+                const targetSelect = document.getElementById('custom-target-select');
+
+                // Keep 'Detect Language' option on source
+                sourceSelect.innerHTML = '<option value="auto">Detect Language</option>';
+
+                // Sort language names alphabetically
+                const sortedLanguages = Object.entries(allLanguagesData)
+                    .map(([code, name]) => ({ code, name }))
+                    .sort((a, b) => a.name.localeCompare(b.name));
+
+                sortedLanguages.forEach(({ code, name }) => {
+                    // Skip 'auto' if present in map keys
+                    if (code === 'auto') return;
+
+                    const optSrc = document.createElement('option');
+                    optSrc.value = code;
+                    optSrc.text = name;
+                    if (code === 'en') optSrc.selected = true; // Default source English
+                    sourceSelect.appendChild(optSrc);
+
+                    const optTgt = document.createElement('option');
+                    optTgt.value = code;
+                    optTgt.text = name;
+                    if (code === 'es') optTgt.selected = true; // Default target Spanish
+                    targetSelect.appendChild(optTgt);
+                });
+
+                // Attach filtering bindings after population
+                setupLanguageSearch('source-search', 'source-lang-select', true);
+                setupLanguageSearch('target-search', 'custom-target-select', false);
+
+            } catch (err) {
+                console.error("Failed to load language list:", err);
+            }
+        }
+
+        // Real-time search/filter mechanism for options
+        function setupLanguageSearch(searchId, selectId, includeAutoOption) {
             const searchInput = document.getElementById(searchId);
             const selectElement = document.getElementById(selectId);
-            const allOptions = Array.from(selectElement.options);
 
             searchInput.addEventListener('input', function() {
                 const term = searchInput.value.toLowerCase().trim();
                 selectElement.innerHTML = '';
 
-                const filtered = allOptions.filter(opt => opt.text.toLowerCase().includes(term));
-                
-                filtered.forEach(opt => selectElement.appendChild(opt));
+                if (includeAutoOption && 'detect language'.includes(term)) {
+                    const autoOpt = document.createElement('option');
+                    autoOpt.value = 'auto';
+                    autoOpt.text = 'Detect Language';
+                    selectElement.appendChild(autoOpt);
+                }
 
-                // Auto-select first matching option if available
-                if (filtered.length > 0) {
-                    filtered[0].selected = true;
+                const sortedLanguages = Object.entries(allLanguagesData)
+                    .map(([code, name]) => ({ code, name }))
+                    .sort((a, b) => a.name.localeCompare(b.name));
+
+                const filtered = sortedLanguages.filter(lang => lang.name.toLowerCase().includes(term));
+
+                filtered.forEach(({ code, name }) => {
+                    if (code === 'auto') return;
+                    const opt = document.createElement('option');
+                    opt.value = code;
+                    opt.text = name;
+                    selectElement.appendChild(opt);
+                });
+
+                // Highlight/select first item if choices exist
+                if (selectElement.options.length > 0) {
+                    selectElement.options[0].selected = true;
                 }
             });
         }
 
-        // Initialize search behaviors
-        setupLanguageSearch('source-search', 'source-lang-select');
-        setupLanguageSearch('target-search', 'custom-target-select');
+        // Initialize language dropdown fetching on page load
+        loadLanguages();
 
         // Translation Trigger Action
         document.getElementById('translate-btn').addEventListener('click', async function() {
