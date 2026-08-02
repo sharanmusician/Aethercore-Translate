@@ -241,7 +241,7 @@
 
     <main>
         <div class="language-bar">
-            <!-- Source Language Search & Select -->
+            <!-- Source Language Control -->
             <div class="control-group">
                 <label for="source-search">From Language</label>
                 <div class="searchable-select-wrapper">
@@ -252,13 +252,13 @@
                 </div>
             </div>
 
-            <!-- Target Language Search & Select -->
+            <!-- Target Language Control -->
             <div class="control-group">
                 <label for="target-search">To Language</label>
                 <div class="searchable-select-wrapper">
                     <input type="text" id="target-search" class="search-input" placeholder="Search target language...">
                     <select id="custom-target-select" size="5">
-                        <!-- Dynamically populated -->
+                        <!-- Populated dynamically -->
                     </select>
                 </div>
             </div>
@@ -286,92 +286,90 @@
     </footer>
 
     <script>
-        let allLanguagesData = {};
+        let cachedLanguages = {};
 
-        // Fetch all supported Google Translate languages and populate selects
-        async function loadLanguages() {
+        async function initializeLanguages() {
             try {
                 const response = await fetch('/api/languages');
-                allLanguagesData = await response.json();
+                cachedLanguages = await response.json();
 
-                const sourceSelect = document.getElementById('source-lang-select');
-                const targetSelect = document.getElementById('custom-target-select');
+                populateSelectElements(cachedLanguages);
+                
+                setupSearchFilter('source-search', 'source-lang-select', true);
+                setupSearchFilter('target-search', 'custom-target-select', false);
+            } catch (err) {
+                console.error("Initialization error loading languages:", err);
+            }
+        }
 
-                // Keep 'Detect Language' option on source
-                sourceSelect.innerHTML = '<option value="auto">Detect Language</option>';
+        function populateSelectElements(languagesObj, filterTerm = '') {
+            const sourceSelect = document.getElementById('source-lang-select');
+            const targetSelect = document.getElementById('custom-target-select');
 
-                // Sort language names alphabetically
-                const sortedLanguages = Object.entries(allLanguagesData)
-                    .map(([code, name]) => ({ code, name }))
-                    .sort((a, b) => a.name.localeCompare(b.name));
+            const currentSourceVal = sourceSelect.value || 'en';
+            const currentTargetVal = targetSelect.value || 'es';
 
-                sortedLanguages.forEach(({ code, name }) => {
-                    // Skip 'auto' if present in map keys
-                    if (code === 'auto') return;
+            sourceSelect.innerHTML = '';
+            targetSelect.innerHTML = '';
 
+            const term = filterTerm.toLowerCase().trim();
+
+            // Add Detect option for source if it matches filter
+            if ('detect language'.includes(term)) {
+                const autoOpt = document.createElement('option');
+                autoOpt.value = 'auto';
+                autoOpt.text = 'Detect Language';
+                sourceSelect.appendChild(autoOpt);
+            }
+
+            const sortedList = Object.entries(languagesObj)
+                .map(([code, name]) => ({ code, name }))
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            sortedList.forEach(({ code, name }) => {
+                if (code === 'auto') return;
+
+                if (name.toLowerCase().includes(term)) {
                     const optSrc = document.createElement('option');
                     optSrc.value = code;
                     optSrc.text = name;
-                    if (code === 'en') optSrc.selected = true; // Default source English
                     sourceSelect.appendChild(optSrc);
 
                     const optTgt = document.createElement('option');
                     optTgt.value = code;
                     optTgt.text = name;
-                    if (code === 'es') optTgt.selected = true; // Default target Spanish
                     targetSelect.appendChild(optTgt);
-                });
+                }
+            });
 
-                // Attach filtering bindings after population
-                setupLanguageSearch('source-search', 'source-lang-select', true);
-                setupLanguageSearch('target-search', 'custom-target-select', false);
+            // Restore previous choices if still present in filtered list, else pick defaults
+            if ([...sourceSelect.options].some(o => o.value === currentSourceVal)) {
+                sourceSelect.value = currentSourceVal;
+            } else if (sourceSelect.options.length > 0) {
+                sourceSelect.selectedIndex = 0;
+            }
 
-            } catch (err) {
-                console.error("Failed to load language list:", err);
+            if ([...targetSelect.options].some(o => o.value === currentTargetVal)) {
+                targetSelect.value = currentTargetVal;
+            } else if (targetSelect.options.length > 0) {
+                targetSelect.selectedIndex = 0;
             }
         }
 
-        // Real-time search/filter mechanism for options
-        function setupLanguageSearch(searchId, selectId, includeAutoOption) {
+        function setupSearchFilter(searchId, selectId, isSource) {
             const searchInput = document.getElementById(searchId);
             const selectElement = document.getElementById(selectId);
 
             searchInput.addEventListener('input', function() {
-                const term = searchInput.value.toLowerCase().trim();
-                selectElement.innerHTML = '';
-
-                if (includeAutoOption && 'detect language'.includes(term)) {
-                    const autoOpt = document.createElement('option');
-                    autoOpt.value = 'auto';
-                    autoOpt.text = 'Detect Language';
-                    selectElement.appendChild(autoOpt);
-                }
-
-                const sortedLanguages = Object.entries(allLanguagesData)
-                    .map(([code, name]) => ({ code, name }))
-                    .sort((a, b) => a.name.localeCompare(b.name));
-
-                const filtered = sortedLanguages.filter(lang => lang.name.toLowerCase().includes(term));
-
-                filtered.forEach(({ code, name }) => {
-                    if (code === 'auto') return;
-                    const opt = document.createElement('option');
-                    opt.value = code;
-                    opt.text = name;
-                    selectElement.appendChild(opt);
-                });
-
-                // Highlight/select first item if choices exist
-                if (selectElement.options.length > 0) {
-                    selectElement.options[0].selected = true;
-                }
+                const term = searchInput.value;
+                populateSelectElements(cachedLanguages, term);
             });
         }
 
-        // Initialize language dropdown fetching on page load
-        loadLanguages();
+        // Run setup on page load
+        initializeLanguages();
 
-        // Translation Trigger Action
+        // Execution logic for translation
         document.getElementById('translate-btn').addEventListener('click', async function() {
             const textToTranslate = document.getElementById('source-text').value;
             const outputBox = document.getElementById('target-output');
@@ -404,7 +402,7 @@
                     outputBox.innerText = data.error || "Translation failed.";
                 }
             } catch (err) {
-                console.error(err);
+                console.error("Network error:", err);
                 outputBox.innerText = "Network error occurred while connecting to server.";
             }
         });
