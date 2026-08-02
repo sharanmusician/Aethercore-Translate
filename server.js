@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { translate } = require('google-translate-api-x');
+const { translate, languages } = require('google-translate-api-x');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -8,6 +8,11 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+// Provide all Google Translate supported languages to the frontend
+app.get('/api/languages', (req, res) => {
+    res.json(languages);
+});
 
 app.post('/api/translate', async (req, res) => {
     try {
