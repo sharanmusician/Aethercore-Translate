@@ -241,7 +241,7 @@
 
     <main>
         <div class="language-bar">
-            <!-- Source Language Control -->
+            <!-- From Language Control with Search -->
             <div class="control-group">
                 <label for="source-search">From Language</label>
                 <div class="searchable-select-wrapper">
@@ -252,7 +252,7 @@
                 </div>
             </div>
 
-            <!-- Target Language Control -->
+            <!-- To Language Control with Search -->
             <div class="control-group">
                 <label for="target-search">To Language</label>
                 <div class="searchable-select-wrapper">
@@ -277,7 +277,7 @@
         </div>
 
         <div class="action-bar">
-            <button id="translate-btn">Translate / Search</button>
+            <button id="translate-btn">Translate</button>
         </div>
     </main>
 
@@ -295,8 +295,8 @@
 
                 populateSelectElements(cachedLanguages);
                 
-                setupSearchFilter('source-search', 'source-lang-select', true);
-                setupSearchFilter('target-search', 'custom-target-select', false);
+                setupSearchFilter('source-search', 'source-lang-select');
+                setupSearchFilter('target-search', 'custom-target-select');
             } catch (err) {
                 console.error("Initialization error loading languages:", err);
             }
@@ -342,7 +342,7 @@
                 }
             });
 
-            // Restore previous choices if still present in filtered list, else pick defaults
+            // Restore selection or fallback gracefully
             if ([...sourceSelect.options].some(o => o.value === currentSourceVal)) {
                 sourceSelect.value = currentSourceVal;
             } else if (sourceSelect.options.length > 0) {
@@ -356,20 +356,17 @@
             }
         }
 
-        function setupSearchFilter(searchId, selectId, isSource) {
+        function setupSearchFilter(searchId, selectId) {
             const searchInput = document.getElementById(searchId);
-            const selectElement = document.getElementById(selectId);
-
             searchInput.addEventListener('input', function() {
-                const term = searchInput.value;
-                populateSelectElements(cachedLanguages, term);
+                populateSelectElements(cachedLanguages, searchInput.value);
             });
         }
 
-        // Run setup on page load
+        // Initialize language list on load
         initializeLanguages();
 
-        // Execution logic for translation
+        // Handle Translation Action
         document.getElementById('translate-btn').addEventListener('click', async function() {
             const textToTranslate = document.getElementById('source-text').value;
             const outputBox = document.getElementById('target-output');
