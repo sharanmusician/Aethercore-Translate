@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Endpoint to provide all official Google Translate languages
+// Endpoint providing all official Google Translate languages
 app.get('/api/languages', (req, res) => {
     try {
         res.json(languages);
@@ -19,7 +19,7 @@ app.get('/api/languages', (req, res) => {
     }
 });
 
-// Endpoint to handle text translation requests securely
+// Endpoint that processes the translation using Google Translate in the background
 app.post('/api/translate', async (req, res) => {
     try {
         const { text, source, target } = req.body;
@@ -41,7 +41,7 @@ app.post('/api/translate', async (req, res) => {
         });
     } catch (error) {
         console.error('Translation error:', error);
-        res.status(500).json({ error: 'Failed to process translation. Please try again.' });
+        res.status(500).json({ error: 'Translation failed. Please try again.' });
     }
 });
 
